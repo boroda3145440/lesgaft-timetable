@@ -101,10 +101,71 @@ function lessonMatches(lesson, mode, id) {
   return false;
 }
 
-function lessonsFor(weekIdx, mode, id) {
+/* «Загрузка кафедры»: все аудитории, где выбранный преподаватель ведёт занятия
+   (по загруженным неделям), включая объединённых «близнецов» этих аудиторий */
+const deptCache = new Map();
+function deptCabinetIds(teacherId) {
+  if (deptCache.has(teacherId)) return deptCache.get(teacherId);
+
+  // все пары по объединённым аудиториям
+  const grpLessons = new Map(); // merged-группа -> её пары
+  data.weeks.forEach((w) => w.lessons.forEach((l) => {
+    if (!l.cabinet) return;
+    const g = data.cabGroup.get(l.cabinet.id);
+    if (!g) return;
+    if (!grpLessons.has(g)) grpLessons.set(g, []);
+    grpLessons.get(g).push(l);
+  }));
+  const grpsOfTeachers = (tids) => {
+    const s = new Set();
+    grpLessons.forEach((ls, g) => {
+      if (ls.some((l) => l.teachers.some((t) => tids.has(t.id)))) s.add(g);
+    });
+    return s;
+  };
+
+  // 1) аудитории самого препода; 2) добираем аудитории коллег по этим залам,
+  // но только те, где коллеги ведут не меньше половины занятий (чтобы не
+  // прилипали общие залы чужих кафедр)
+  const grps = grpsOfTeachers(new Set([teacherId]));
+  for (let i = 0; i < 3; i++) {
+    const tids = new Set();
+    grps.forEach((g) => (grpLessons.get(g) || []).forEach((l) => l.teachers.forEach((t) => tids.add(t.id))));
+    let changed = false;
+    grpsOfTeachers(tids).forEach((g) => {
+      if (grps.has(g)) return;
+      const ls = grpLessons.get(g) || [];
+      const share = ls.filter((l) => l.teachers.some((t) => tids.has(t.id))).length / ls.length;
+      if (share >= 0.5) { grps.add(g); changed = true; }
+    });
+    if (!changed) break;
+  }
+
+  const ids = new Set();
+  grps.forEach((g) => g.ids.forEach((cid) => ids.add(cid)));
+  deptCache.set(teacherId, ids);
+  return ids;
+}
+
+function deptActive() {
+  return state.mode === "teacher" && state.deptView && state.sel.teacher != null;
+}
+
+/* единый фильтр занятий для текущего выбора (обычный режим или «загрузка кафедры») */
+function activeFilter() {
+  if (deptActive()) {
+    const ids = deptCabinetIds(state.sel.teacher);
+    return (l) => l.cabinet && ids.has(l.cabinet.id);
+  }
+  const mode = state.mode, id = state.sel[mode];
+  if (id == null) return () => false;
+  return (l) => lessonMatches(l, mode, id);
+}
+
+function lessonsFor(weekIdx) {
   const week = data.weeks[weekIdx];
-  if (!week || id == null) return [];
-  return week.lessons.filter((l) => lessonMatches(l, mode, id));
+  if (!week) return [];
+  return week.lessons.filter(activeFilter());
 }
 
 /* ---------- загрузка ---------- */
@@ -223,13 +284,29 @@ function renderControls() {
     b.classList.toggle("active", b.dataset.view === state.view);
   });
 
+  // кнопка «Загрузка кафедры» — только в режиме преподавателя
+  const deptBtn = $("#deptBtn");
+  const deptInfo = $("#deptInfo");
+  const teacherPicked = state.mode === "teacher" && state.sel.teacher != null;
+  deptBtn.hidden = !teacherPicked;
+  deptBtn.classList.toggle("on", deptActive());
+  if (deptActive()) {
+    const titles = [...new Set([...deptCabinetIds(state.sel.teacher)]
+      .map((cid) => (data.cabGroup.get(cid) || {}).title).filter(Boolean))];
+    deptInfo.hidden = false;
+    deptInfo.textContent = titles.length
+      ? "Аудитории кафедры: " + titles.join(" · ")
+      : "У этого преподавателя нет занятий с аудиториями в загруженном периоде.";
+  } else {
+    deptInfo.hidden = true;
+  }
+
   // полоса дней
   const strip = $("#daystrip");
   strip.innerHTML = "";
   const week = data.weeks[state.weekIdx];
-  const mode = state.mode, id = state.sel[mode];
   const today = new Date();
-  const daysWith = new Set(lessonsFor(state.weekIdx, mode, id).map((l) => l.weekday));
+  const daysWith = new Set(lessonsFor(state.weekIdx).map((l) => l.weekday));
   for (let wd = 1; wd <= 7; wd++) {
     const d = dateOf(week.weekStart, wd);
     const btn = document.createElement("button");
@@ -338,7 +415,7 @@ function renderContent() {
     return;
   }
   const week = data.weeks[state.weekIdx];
-  const lessons = lessonsFor(state.weekIdx, state.mode, id);
+  const lessons = lessonsFor(state.weekIdx);
 
   if (state.view === "month") {
     renderMonthView(content, id);
@@ -393,12 +470,13 @@ function renderMonthView(content, id) {
   const y = anchor.getFullYear(), m = anchor.getMonth();
 
   // какие даты покрыты загруженными неделями и какие пары в каждой
+  const flt = activeFilter();
   const lessonsByDate = new Map();
   const locByDate = new Map(); // дата -> {wi, wd}, чтобы по клику открыть день
   data.weeks.forEach((w, wi) => {
     for (let wd = 1; wd <= 7; wd++) locByDate.set(isoDate(dateOf(w.weekStart, wd)), { wi, wd });
     w.lessons.forEach((l) => {
-      if (!lessonMatches(l, state.mode, id)) return;
+      if (!flt(l)) return;
       const key = isoDate(dateOf(w.weekStart, l.weekday));
       if (!lessonsByDate.has(key)) lessonsByDate.set(key, []);
       lessonsByDate.get(key).push(l);
@@ -442,8 +520,11 @@ function renderMonthView(content, id) {
       + (i % 7 >= 5 ? " weekend" : "")
       + (sameDate(d, today) ? " today" : "");
     const chips = dayLessons.map((l) => {
-      const fio = state.mode !== "teacher" ? teacherShort(l) : "";
-      return `<span class="ln"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}${fio ? ` <span class="fio">${esc(fio)}</span>` : ""}</span>`;
+      const fio = state.mode !== "teacher" || deptActive() ? teacherShort(l) : "";
+      const groupsTxt = deptActive() ? l.groups.map((g) => g.name).join(", ") : "";
+      return `<span class="ln"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}` +
+        (fio ? ` <span class="fio">${esc(fio)}</span>` : "") +
+        (groupsTxt ? `<span class="gr">${esc(groupsTxt)}</span>` : "") + `</span>`;
     }).join("");
     cell.innerHTML = `<span class="n">${dn}</span><span class="chips">${chips}</span>`;
     if (loc) {
@@ -550,6 +631,7 @@ document.querySelectorAll(".mode-btn").forEach((b) => {
   };
 });
 $("#pickerBtn").onclick = openSheet;
+$("#deptBtn").onclick = () => { state.deptView = !state.deptView; renderAll(); };
 $("#sheetClose").onclick = closeSheet;
 $("#overlay").addEventListener("click", (e) => { if (e.target === e.currentTarget) closeSheet(); });
 $("#searchInput").addEventListener("input", (e) => renderSheetList(e.target.value));
