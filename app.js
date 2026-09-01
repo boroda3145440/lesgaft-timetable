@@ -205,8 +205,9 @@ function renderControls() {
   $("#daystrip").hidden = !has || state.view !== "day";
   if (!has) return;
 
-  // недели
+  // недели (в виде «Месяц» не нужны — месяц и так виден целиком)
   const weeksEl = $("#weeks");
+  weeksEl.hidden = state.view === "month";
   weeksEl.innerHTML = "";
   data.weeks.forEach((w, i) => {
     const chip = document.createElement("button");

@@ -112,7 +112,7 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 .week-chip.active { background: var(--navy); border-color: var(--navy); color: #fff; }
 
 /* переключатель вида — как «денежные» вкладки КС: активная оранжевая */
-.view-toggle { flex: none; display: flex; gap: 6px; }
+.view-toggle { flex: none; display: flex; gap: 6px; margin-left: auto; }
 .view-toggle button {
   padding: 6px 13px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: var(--navy-ink); background: #fff; border: 1.5px solid var(--line); transition: all .15s;
