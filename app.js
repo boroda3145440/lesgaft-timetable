@@ -68,10 +68,22 @@ function badgeClass(type) {
   if (!type) return "";
   const t = type.toLowerCase();
   if (t.includes("онлайн")) return "online";
+  if (t.includes("семинар")) return "seminar";
+  if (t.includes("экзам") || t.includes("зачёт") || t.includes("зачет")) return "exam";
   if (t.includes("лекци")) return "lecture";
-  if (t.includes("практи")) return "practice";
+  if (t.includes("практи") || t.includes("лаборат")) return "practice";
   if (t.includes("консульт")) return "consult";
   return "lecture";
+}
+
+/* стабильный цвет аудитории (для «Загрузки кафедры») из корпоративной палитры */
+const ROOM_COLORS = ["#2b3990", "#1b75bb", "#f47b20", "#1e7d43", "#7a4cb8", "#c22f2f", "#0f7c97", "#8a6b00"];
+const roomColorMap = new Map();
+function roomColorFor(cabId) {
+  const g = data.cabGroup && data.cabGroup.get(cabId);
+  const key = g ? g.title : String(cabId);
+  if (!roomColorMap.has(key)) roomColorMap.set(key, ROOM_COLORS[roomColorMap.size % ROOM_COLORS.length]);
+  return roomColorMap.get(key);
 }
 
 function parseMin(hhmm) {
@@ -340,7 +352,8 @@ function lessonRow(lesson) {
   }
   if (lesson.cabinet) {
     const info = cabinetInfo(lesson.cabinet.name);
-    meta.push(`<button class="chip-link cab-chip" data-id="${lesson.cabinet.id}">${esc(info.title)}</button>` +
+    const clr = deptActive() ? ` style="color:${roomColorFor(lesson.cabinet.id)}"` : "";
+    meta.push(`<button class="chip-link cab-chip" data-id="${lesson.cabinet.id}"${clr}>${esc(info.title)}</button>` +
       (info.url ? ` <a class="web-link" href="${esc(info.url)}" target="_blank" rel="noopener">подключиться ↗</a>` : ""));
   }
   const showGroups = state.mode !== "group" || lesson.groups.length > 1;
@@ -520,11 +533,22 @@ function renderMonthView(content, id) {
       + (i % 7 >= 5 ? " weekend" : "")
       + (sameDate(d, today) ? " today" : "");
     const chips = dayLessons.map((l) => {
-      const fio = state.mode !== "teacher" || deptActive() ? teacherShort(l) : "";
-      const groupsTxt = deptActive() ? l.groups.map((g) => g.name).join(", ") : "";
-      return `<span class="ln"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}` +
-        (fio ? ` <span class="fio">${esc(fio)}</span>` : "") +
-        (groupsTxt ? `<span class="gr">${esc(groupsTxt)}</span>` : "") + `</span>`;
+      // строки плашки: время+тип / группа / препод / аудитория
+      const lines = [`<span class="l1"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}</span>`];
+      if (deptActive()) {
+        if (l.groups.length) lines.push(`<span class="l2">${esc(l.groups.map((g) => g.name).join(", "))}</span>`);
+        const fio = teacherShort(l);
+        if (fio) lines.push(`<span class="l3">${esc(fio)}</span>`);
+        if (l.cabinet) {
+          const info = cabinetInfo(l.cabinet.name);
+          lines.push(`<span class="l4" style="color:${roomColorFor(l.cabinet.id)}">${esc(info.title)}</span>`);
+        }
+      } else if (state.mode !== "teacher") {
+        const fio = teacherShort(l);
+        if (fio) lines.push(`<span class="l3">${esc(fio)}</span>`);
+      }
+      const roomBar = deptActive() && l.cabinet ? ` style="border-left-color:${roomColorFor(l.cabinet.id)}"` : "";
+      return `<span class="ln ${badgeClass(l.type)}"${roomBar}>${lines.join("")}</span>`;
     }).join("");
     cell.innerHTML = `<span class="n">${dn}</span><span class="chips">${chips}</span>`;
     if (loc) {
