@@ -237,18 +237,18 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 .m-day .chips { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 100%; min-width: 0; }
 .m-day .ln {
   display: block; max-width: 100%; white-space: normal; overflow-wrap: break-word;
-  background: var(--mist); color: #3c4560;
+  background: var(--mist); color: #20283c;
   border-left: 3px solid transparent;
   border-radius: 5px; padding: 3px 6px;
   font-size: 11px; font-weight: 600; line-height: 1.35; text-align: left;
 }
-/* цвет плашки — по типу занятия (корпоративные тона, тёмный текст на светлом фоне) */
-.m-day .ln.lecture  { background: #dcebff; color: #1b4e8a; }
-.m-day .ln.practice { background: #def3de; color: #1e7d43; }
-.m-day .ln.seminar  { background: #ddf3f8; color: #0f7c97; }
-.m-day .ln.consult  { background: #ebeff8; color: #52617b; }
-.m-day .ln.online   { background: #fde8d7; color: #c25a10; }
-.m-day .ln.exam     { background: #fff1bf; color: #7a5e00; }
+/* фон плашки — по типу занятия; текст всегда тёмный нейтральный */
+.m-day .ln.lecture  { background: #dcebff; }
+.m-day .ln.practice { background: #def3de; }
+.m-day .ln.seminar  { background: #ddf3f8; }
+.m-day .ln.consult  { background: #ebeff8; }
+.m-day .ln.online   { background: #fde8d7; }
+.m-day .ln.exam     { background: #fff1bf; }
 .m-day .ln b { font-weight: 700; }
 .m-day .ln .l1, .m-day .ln .l2, .m-day .ln .l3, .m-day .ln .l4 { display: block; }
 .m-day .ln .l2 { font-weight: 500; }

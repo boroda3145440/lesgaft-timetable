@@ -159,8 +159,16 @@ function deptCabinetIds(teacherId) {
   return ids;
 }
 
+/* у кого доступна кнопка «Загрузка кафедры» (по ФИО без регалий) */
+const DEPT_BUTTON_TEACHERS = ["Зуев А.Я."];
+function deptButtonAllowed() {
+  if (state.mode !== "teacher" || state.sel.teacher == null) return false;
+  const t = data.teachers.find((x) => x.id === state.sel.teacher);
+  return !!t && DEPT_BUTTON_TEACHERS.includes(t.fio.split(",")[0].trim());
+}
+
 function deptActive() {
-  return state.mode === "teacher" && state.deptView && state.sel.teacher != null;
+  return state.deptView && deptButtonAllowed();
 }
 
 /* единый фильтр занятий для текущего выбора (обычный режим или «загрузка кафедры») */
@@ -299,8 +307,7 @@ function renderControls() {
   // кнопка «Загрузка кафедры» — только в режиме преподавателя
   const deptBtn = $("#deptBtn");
   const deptInfo = $("#deptInfo");
-  const teacherPicked = state.mode === "teacher" && state.sel.teacher != null;
-  deptBtn.hidden = !teacherPicked;
+  deptBtn.hidden = !deptButtonAllowed();
   deptBtn.classList.toggle("on", deptActive());
   if (deptActive()) {
     const titles = [...new Set([...deptCabinetIds(state.sel.teacher)]
