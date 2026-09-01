@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Расписание · Лесгафта</title>
+<link rel="icon" href="logo.png" type="image/png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="inner">
+    <div class="logobox"><img src="logo.png" alt="Университет Лесгафта — 130 лет"></div>
+    <div class="titles">
+      <h1>Расписание занятий</h1>
+      <div class="org"><span id="siteName">НГУ им. П.Ф.&nbsp;Лесгафта, Санкт-Петербург</span><br><span class="updated" id="updatedAt"></span></div>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+
+  <div class="sticky">
+    <div class="panel">
+      <nav class="modes" id="modes">
+        <button class="mode-btn" data-mode="group">Группы</button>
+        <button class="mode-btn" data-mode="teacher">Преподаватели</button>
+        <button class="mode-btn" data-mode="cabinet">Аудитории</button>
+      </nav>
+
+      <button class="picker-btn" id="pickerBtn">
+        <span class="picker-label" id="pickerLabel">Выбрать…</span>
+        <svg class="chev" viewBox="0 0 20 20" width="18" height="18"><path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="controls" id="controls" hidden>
+        <div class="weeks" id="weeks"></div>
+        <div class="view-toggle" id="viewToggle">
+          <button data-view="day">День</button>
+          <button data-view="week">Неделя</button>
+          <button data-view="month">Месяц</button>
+        </div>
+      </div>
+
+      <div class="daystrip" id="daystrip" hidden></div>
+    </div>
+  </div>
+
+  <main id="content">
+    <div class="hero" id="hero">
+      <div class="hero-emoji">🗓️</div>
+      <p>Выбери группу, преподавателя<br>или аудиторию — и здесь появится расписание.</p>
+    </div>
+  </main>
+
+</div>
+
+<div class="foot">Данные: <a href="https://schedule.mstimetables.ru/publications/daaaf5b9-665d-44a1-b349-0ebc10ca5441#/" target="_blank" rel="noopener">официальная публикация расписания вуза</a><br>НГУ им. П.Ф.&nbsp;Лесгафта, Санкт-Петербург</div>
+
+<!-- всплывающий список выбора -->
+<div class="overlay" id="overlay" hidden>
+  <div class="sheet">
+    <div class="sheet-head">
+      <input type="search" id="searchInput" placeholder="Поиск…" autocomplete="off">
+      <button class="sheet-close" id="sheetClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="sheet-list" id="sheetList"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
