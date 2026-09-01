@@ -25,6 +25,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; } /* атрибут hidden сильнее любых display у классов */
 html { -webkit-text-size-adjust: 100%; color-scheme: light; }
 body {
   margin: 0;
@@ -41,7 +42,7 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
   padding: 16px 0;
 }
 .masthead .inner {
-  max-width: 760px; margin: 0 auto; padding: 0 14px;
+  max-width: 1140px; margin: 0 auto; padding: 0 14px;
   display: flex; align-items: center; gap: 16px;
 }
 .logobox {
@@ -62,7 +63,7 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 .masthead .org { font-size: 12.5px; color: #c9d2ef; margin-top: 6px; line-height: 1.4; }
 .masthead .updated { color: #98a6d9; font-size: 11.5px; }
 
-.app { max-width: 760px; margin: 0 auto; padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
+.app { max-width: 1140px; margin: 0 auto; padding: 0 14px calc(20px + env(safe-area-inset-bottom)); }
 
 /* ---------- липкий блок управления в белой панели, как на КС ---------- */
 .sticky {
@@ -196,33 +197,36 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
   font-family: Bahnschrift, "Segoe UI Semibold", "Segoe UI", Arial, sans-serif;
   font-size: 22px; font-weight: 600; color: var(--navy-ink); margin: 12px 2px 10px;
 }
-.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
-.month-dw { text-align: center; font-size: 10.5px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: .04em; padding: 2px 0 6px; }
-.month-dw.weekend { color: #b6bdcc; }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.month-dw { text-align: center; font-size: 11px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: .04em; padding: 2px 0 4px; }
+.month-dw.weekend { color: #aab2c5; }
 .m-day {
-  background: none; border: 0; border-top: 1px solid var(--line); border-radius: 0;
-  min-height: 72px; min-width: 0; overflow: hidden; padding: 6px 2px 6px;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
-  transition: background .15s;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px;
+  min-height: 92px; min-width: 0; padding: 7px 5px 7px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  box-shadow: var(--shadow);
+  transition: border-color .15s, background .15s;
 }
-.m-day:not(:disabled):hover { background: var(--mist); }
+.m-day:not(:disabled):hover { border-color: var(--peri); }
+.m-day.blank { background: transparent; border-color: transparent; box-shadow: none; }
 .m-day .n {
   width: 28px; height: 28px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1;
+  font-size: 15px; font-weight: 600; color: var(--text); line-height: 1;
 }
 .m-day.weekend .n { color: var(--slate); }
 .m-day.today .n { background: var(--accent); color: #fff; font-weight: 700; }
+.m-day.off { background: var(--paper); box-shadow: none; }
 .m-day.off .n { color: #b6bdcc; }
-.m-day .chips { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; min-width: 0; }
+.m-day .chips { display: flex; flex-direction: column; align-items: stretch; gap: 3px; width: 100%; min-width: 0; }
 .m-day .ln {
-  display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block; max-width: 100%; white-space: normal; overflow-wrap: break-word;
   background: var(--accent-soft); color: var(--accent-deep);
-  border-radius: 4px; padding: 1.5px 4px;
-  font-size: 9.5px; font-weight: 600; line-height: 1.35; text-align: left;
+  border-radius: 5px; padding: 2.5px 6px;
+  font-size: 11px; font-weight: 600; line-height: 1.35; text-align: left;
 }
 .m-day .ln b { font-weight: 700; }
-.m-day .ln.more { background: none; color: var(--slate); font-weight: 500; text-align: center; }
+.m-day .ln .fio { font-weight: 600; }
 .hint { color: #98a0b4; font-size: 12.5px; margin-top: 10px; }
 
 /* ---------- подвал, как на КС ---------- */
@@ -237,7 +241,7 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 }
 .overlay[hidden] { display: none; }
 .sheet {
-  width: 100%; max-width: 760px;
+  width: 100%; max-width: 640px;
   height: 82vh; height: 82dvh; /* фиксированная высота: шторка не прыгает при фильтрации списка */
   background: var(--paper); border-radius: 18px 18px 0 0;
   display: flex; flex-direction: column;
@@ -277,9 +281,12 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
   .masthead .org { font-size: 11.5px; margin-top: 5px; }
   .panel { padding: 10px; }
   .cal-title { font-size: 19px; }
-  .m-day { min-height: 62px; padding: 4px 1px 5px; }
-  .m-day .n { width: 26px; height: 26px; font-size: 13.5px; }
-  .m-day .ln { font-size: 8.5px; padding: 1px 3px; }
+  .month-grid { gap: 3px; }
+  .m-day { min-height: 74px; padding: 4px 2px 5px; border-radius: 8px; gap: 2px; }
+  .m-day .n { width: 25px; height: 25px; font-size: 13.5px; }
+  /* на телефоне плашка в две строки: «время Тип» / «Фамилия И.О.» целиком */
+  .m-day .ln { font-size: 9px; padding: 2px 3px; border-radius: 4px; }
+  .m-day .ln .fio { display: block; }
   .ev { padding: 9px 10px 10px 8px; gap: 8px; }
   .ev-title { font-size: 14.5px; }
   .ev-meta { font-size: 12.5px; }

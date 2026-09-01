@@ -440,15 +440,10 @@ function renderMonthView(content, id) {
       + (dayLessons.length ? " has" : "")
       + (i % 7 >= 5 ? " weekend" : "")
       + (sameDate(d, today) ? " today" : "");
-    let chips = "";
-    if (dayLessons.length) {
-      const shown = dayLessons.length > 3 ? dayLessons.slice(0, 2) : dayLessons;
-      chips = shown.map((l) => {
-        const fio = state.mode !== "teacher" ? teacherShort(l) : "";
-        return `<span class="ln"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}${fio ? " " + esc(fio) : ""}</span>`;
-      }).join("");
-      if (dayLessons.length > shown.length) chips += `<span class="ln more">ещё ${dayLessons.length - shown.length}</span>`;
-    }
+    const chips = dayLessons.map((l) => {
+      const fio = state.mode !== "teacher" ? teacherShort(l) : "";
+      return `<span class="ln"><b>${esc(l.start || "")}</b> ${esc(typeShort(l.type))}${fio ? ` <span class="fio">${esc(fio)}</span>` : ""}</span>`;
+    }).join("");
     cell.innerHTML = `<span class="n">${dn}</span><span class="chips">${chips}</span>`;
     if (loc) {
       cell.onclick = () => { state.weekIdx = loc.wi; state.weekday = loc.wd; state.view = "day"; renderAll(); };
