@@ -230,9 +230,20 @@ function rememberPassword(pw) {
   try { pw ? localStorage.setItem(PW_KEY, pw) : localStorage.removeItem(PW_KEY); } catch { /* приватный режим */ }
 }
 
-/* форма пароля вместо контента; резолвится введённой строкой */
+/* экран пароля вместо контента; резолвится введённой строкой.
+   Если пароль целиком из цифр (data/lock.json → digits), рисуем пинпад как на телефоне,
+   иначе - обычное поле ввода. */
+const PIN_LETTERS = ["", "", "АБВГ|ABC", "ДЕЖЗ|DEF", "ИЙКЛ|GHI", "МНОП|JKL", "РСТУ|MNO", "ФХЦЧ|PQRS", "ШЩЪЫ|TUV", "ЬЭЮЯ|WXYZ"];
+let lockDigits = 0;
+let pinKeyHandler = null;
+
 function askPassword(wrong) {
   $(".sticky").hidden = true;
+  if (pinKeyHandler) { document.removeEventListener("keydown", pinKeyHandler); pinKeyHandler = null; }
+  return lockDigits > 0 ? askPin(wrong) : askPasswordText(wrong);
+}
+
+function askPasswordText(wrong) {
   const content = $("#content");
   content.innerHTML = `<form class="lock" id="lockForm" autocomplete="off">
       <div class="lock-emoji">🔒</div>
@@ -255,6 +266,53 @@ function askPassword(wrong) {
   });
 }
 
+function askPin(wrong) {
+  const content = $("#content");
+  const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9].map((d) => {
+    const [ru, en] = PIN_LETTERS[d].split("|");
+    return `<button type="button" class="pin-key" data-d="${d}"><span class="pin-num">${d}</span>` +
+      (ru ? `<span class="pin-abc">${ru}<br>${en}</span>` : "") + `</button>`;
+  }).join("");
+  const dotsHtml = '<span class="pin-dot"></span>'.repeat(lockDigits);
+  content.innerHTML = `<div class="pin" id="pin">
+      <div class="pin-title">${wrong ? "Код не подошёл" : "Введите код-пароль"}</div>
+      <div class="pin-sub">${wrong ? "Попробуй ещё раз" : "Один раз, дальше запомнится"}</div>
+      <div class="pin-dots${wrong ? " shake" : ""}" id="pinDots">${dotsHtml}</div>
+      <div class="pin-keys">
+        ${keys}
+        <span class="pin-key blank"></span>
+        <button type="button" class="pin-key" data-d="0"><span class="pin-num">0</span></button>
+        <button type="button" class="pin-key soft" id="pinBack" aria-label="Стереть">⌫</button>
+      </div>
+    </div>`;
+
+  let entered = "";
+  const paint = () => $("#pinDots").querySelectorAll(".pin-dot").forEach((d, i) => d.classList.toggle("on", i < entered.length));
+
+  return new Promise((resolve) => {
+    const push = (d) => {
+      if (entered.length >= lockDigits) return;
+      entered += d;
+      paint();
+      if (entered.length === lockDigits) {
+        $("#pin").classList.add("busy");
+        setTimeout(() => resolve(entered), 120); // дать точке дорисоваться
+      }
+    };
+    const pop = () => { entered = entered.slice(0, -1); paint(); };
+
+    content.querySelectorAll(".pin-key[data-d]").forEach((b) => {
+      b.onclick = () => push(b.dataset.d);
+    });
+    $("#pinBack").onclick = pop;
+    pinKeyHandler = (e) => {
+      if (e.key >= "0" && e.key <= "9") push(e.key);
+      else if (e.key === "Backspace") pop();
+    };
+    document.addEventListener("keydown", pinKeyHandler);
+  });
+}
+
 /* подбираем ключ: сначала сохранённый пароль, потом спрашиваем, пока не подойдёт */
 async function unlock(metaBuf) {
   let pw = savedPassword();
@@ -265,6 +323,7 @@ async function unlock(metaBuf) {
     try {
       const meta = await decryptJson(metaBuf);
       rememberPassword(pw);
+      if (pinKeyHandler) { document.removeEventListener("keydown", pinKeyHandler); pinKeyHandler = null; }
       $(".sticky").hidden = false;
       return meta;
     } catch {
@@ -283,7 +342,12 @@ async function boot() {
     return;
   }
   try {
-    const meta = await unlock(await fetchEnc("meta.json"));
+    const [metaBuf, lockInfo] = await Promise.all([
+      fetchEnc("meta.json"),
+      fetch("data/lock.json", { cache: "no-cache" }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    ]);
+    lockDigits = Number(lockInfo.digits) || 0;
+    const meta = await unlock(metaBuf);
     $("#content").innerHTML = '<div class="loading">Загружаю расписание…</div>';
     const [groups, teachers, cabinets, ...weeks] = await Promise.all([
       loadJson("groups.json"),

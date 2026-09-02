@@ -318,6 +318,50 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 .lock button:disabled { opacity: .6; }
 .foot a { color: var(--slate); }
 
+/* пинпад как на телефоне: точки + круглые клавиши, цвета КС */
+.pin { max-width: 340px; margin: 28px auto 0; text-align: center; user-select: none; }
+.pin-title { font-size: 19px; font-weight: 700; color: var(--navy-ink); }
+.pin-sub { font-size: 13px; color: var(--slate); margin-top: 4px; }
+.pin-dots { display: flex; justify-content: center; gap: 18px; margin: 22px 0 30px; }
+.pin-dot {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 1.5px solid var(--navy); background: transparent;
+  transition: background .12s, transform .12s;
+}
+.pin-dot.on { background: var(--navy); transform: scale(1.1); }
+.pin-dots.shake { animation: pin-shake .45s; }
+.pin-dots.shake .pin-dot { border-color: var(--accent); }
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-10px); } 40% { transform: translateX(10px); }
+  60% { transform: translateX(-7px); } 80% { transform: translateX(7px); }
+}
+.pin-keys {
+  display: grid; grid-template-columns: repeat(3, 76px); gap: 16px 22px;
+  justify-content: center;
+}
+.pin-key {
+  width: 76px; height: 76px; border-radius: 50%;
+  background: #fff; border: 1.5px solid var(--line); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--navy-ink); cursor: pointer; padding: 0;
+  transition: background .1s, border-color .1s, color .1s, transform .08s;
+  -webkit-tap-highlight-color: transparent;
+}
+.pin-key:active { background: var(--navy); border-color: var(--navy); color: #fff; transform: scale(.96); }
+.pin-key:active .pin-abc { color: rgba(255, 255, 255, .8); }
+.pin-key.soft { background: transparent; border-color: transparent; box-shadow: none; color: var(--slate); font-size: 24px; }
+.pin-key.soft:active { background: var(--mist); color: var(--navy); }
+.pin-key.blank { visibility: hidden; }
+.pin-num { font-size: 30px; font-weight: 500; line-height: 1; }
+.pin-abc { font-size: 8.5px; letter-spacing: .12em; color: var(--slate); line-height: 1.25; margin-top: 3px; font-weight: 600; }
+.pin.busy .pin-key { pointer-events: none; opacity: .6; }
+@media (max-width: 360px) {
+  .pin-keys { grid-template-columns: repeat(3, 68px); gap: 12px 18px; }
+  .pin-key { width: 68px; height: 68px; }
+  .pin-num { font-size: 27px; }
+}
+
 .loading, .load-error { text-align: center; color: var(--slate); padding: 40px 20px; font-size: 14.5px; }
 
 @media (max-width: 680px) {

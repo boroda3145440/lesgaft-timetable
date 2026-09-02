@@ -37,6 +37,7 @@ KDF_ITER = 200_000
 ENC_SUFFIX = ".enc"
 PLAIN = False       # --plain: писать открытые json
 ENC_KEY = None      # 32-байтный ключ AES
+PIN_DIGITS = 0      # длина пароля, если он целиком из цифр (для экрана-«пинпада»)
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -130,13 +131,21 @@ def save_json(name, payload):
     print(f"  {path.name}: {path.stat().st_size / 1024:.0f} КБ")
 
 
+def save_lock_info():
+    """Открытый data/lock.json: сколько цифр в пароле, чтобы сайт показал пинпад.
+    0 = пароль не только из цифр, будет обычное поле ввода."""
+    OUT_DIR.mkdir(exist_ok=True)
+    (OUT_DIR / "lock.json").write_text(json.dumps({"digits": PIN_DIGITS}), encoding="utf-8")
+
+
 def encrypt_existing():
     """Зашифровать открытые data/*.json, которые уже лежат на диске (без выгрузки)."""
-    files = sorted(OUT_DIR.glob("*.json"))
+    files = [f for f in sorted(OUT_DIR.glob("*.json")) if f.name != "lock.json"]
     if not files:
         sys.exit("В data/ нет открытых *.json - нечего шифровать.")
     for f in files:
         save_json(f.name, json.loads(f.read_text(encoding="utf-8")))
+    save_lock_info()
 
 
 def main():
@@ -148,7 +157,7 @@ def main():
     parser.add_argument("--plain", action="store_true")
     args = parser.parse_args()
 
-    global PLAIN, ENC_KEY  # noqa: PLW0603
+    global PLAIN, ENC_KEY, PIN_DIGITS  # noqa: PLW0603
     PLAIN = args.plain
     if not PLAIN:
         password = read_password(args.password)
@@ -156,6 +165,7 @@ def main():
             sys.exit("Нет пароля: укажи --password, переменную TIMETABLE_PASSWORD или файл .password "
                      "(либо --plain для открытых файлов).")
         ENC_KEY = derive_key(password)
+        PIN_DIGITS = len(password) if password.isdigit() else 0
     if args.encrypt_only:
         print("Шифрую существующие файлы...")
         encrypt_existing()
@@ -218,6 +228,8 @@ def main():
         "weeks": week_names,
         "errors": errors,
     })
+    if not PLAIN:
+        save_lock_info()
     print("Готово." + (f" Ошибок: {errors}" if errors else ""))
 
 
