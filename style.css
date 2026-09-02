@@ -296,6 +296,28 @@ button { font: inherit; color: inherit; background: none; border: none; padding:
 .sheet-item .cnt { flex: none; font-size: 12px; color: var(--slate); }
 .sheet-note { padding: 10px 12px; font-size: 13px; color: var(--slate); }
 
+/* замок: карточка ввода пароля в духе панели */
+.lock {
+  max-width: 380px; margin: 48px auto 0; padding: 26px 22px 22px;
+  background: #fff; border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: var(--shadow); text-align: center;
+}
+.lock-emoji { font-size: 40px; margin-bottom: 8px; }
+.lock-title { font-size: 17px; font-weight: 700; color: var(--navy-ink); }
+.lock-text { font-size: 13.5px; color: var(--slate); margin: 6px 0 16px; line-height: 1.5; }
+.lock input {
+  width: 100%; box-sizing: border-box; padding: 11px 13px; font: inherit; font-size: 16px;
+  border: 1.5px solid var(--line); border-radius: 10px; background: var(--paper); color: var(--text);
+}
+.lock input:focus { outline: none; border-color: var(--navy); }
+.lock button {
+  margin-top: 10px; width: 100%; padding: 11px; border-radius: 10px;
+  background: var(--navy); color: #fff; border: none; font-size: 15px; font-weight: 700;
+}
+.lock button:hover { background: var(--navy-deep); }
+.lock button:disabled { opacity: .6; }
+.foot a { color: var(--slate); }
+
 .loading, .load-error { text-align: center; color: var(--slate); padding: 40px 20px; font-size: 14.5px; }
 
 @media (max-width: 680px) {

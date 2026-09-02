@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# открытые данные и пароль - в репо только зашифрованные data/*.json.enc
+data/*.json
+.password

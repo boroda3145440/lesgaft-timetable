@@ -24,7 +24,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Библиотека шифрования
+        run: pip install --quiet cryptography
+
       - name: Выгрузка расписания из публикации вуза
+        env:
+          TIMETABLE_PASSWORD: ${{ secrets.TIMETABLE_PASSWORD }}
         run: python fetch_data.py
 
       - name: Коммит обновлённых данных

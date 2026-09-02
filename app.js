@@ -188,16 +188,108 @@ function lessonsFor(weekIdx) {
   return week.lessons.filter(activeFilter());
 }
 
+/* ---------- замок: данные лежат зашифрованными (см. fetch_data.py) ---------- */
+const KDF_SALT = hexBytes("6c6573676166742d74696d657461626c652d3230323600");
+const KDF_ITER = 200000;
+const PW_KEY = "lt_pw_v1";
+let encKey = null;
+
+function hexBytes(hex) {
+  return new Uint8Array(hex.match(/../g).map((h) => parseInt(h, 16)));
+}
+
+async function deriveKey(password) {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", hash: "SHA-256", salt: KDF_SALT, iterations: KDF_ITER },
+    base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+}
+
+async function fetchEnc(name) {
+  const r = await fetch("data/" + name + ".enc", { cache: "no-cache" });
+  if (!r.ok) throw new Error("HTTP " + r.status + " " + name);
+  return r.arrayBuffer();
+}
+
+/* iv(12) + AES-GCM(gzip(json)) -> объект */
+async function decryptJson(buf) {
+  const bytes = new Uint8Array(buf);
+  const gz = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(0, 12) }, encKey, bytes.slice(12));
+  const stream = new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(stream).text());
+}
+
+async function loadJson(name) {
+  return decryptJson(await fetchEnc(name));
+}
+
+function savedPassword() {
+  try { return localStorage.getItem(PW_KEY); } catch { return null; }
+}
+function rememberPassword(pw) {
+  try { pw ? localStorage.setItem(PW_KEY, pw) : localStorage.removeItem(PW_KEY); } catch { /* приватный режим */ }
+}
+
+/* форма пароля вместо контента; резолвится введённой строкой */
+function askPassword(wrong) {
+  $(".sticky").hidden = true;
+  const content = $("#content");
+  content.innerHTML = `<form class="lock" id="lockForm" autocomplete="off">
+      <div class="lock-emoji">🔒</div>
+      <div class="lock-title">Расписание по паролю</div>
+      <div class="lock-text">${wrong ? "Пароль не подошёл, попробуй ещё раз." : "Введи пароль, он запомнится на этом устройстве."}</div>
+      <input type="password" id="lockInput" placeholder="Пароль" autocapitalize="off" spellcheck="false">
+      <button type="submit" id="lockBtn">Открыть</button>
+    </form>`;
+  const input = $("#lockInput");
+  if (matchMedia("(min-width: 700px)").matches) input.focus();
+  return new Promise((resolve) => {
+    $("#lockForm").onsubmit = (e) => {
+      e.preventDefault();
+      const pw = input.value;
+      if (!pw) return;
+      $("#lockBtn").disabled = true;
+      $("#lockBtn").textContent = "Проверяю…";
+      resolve(pw);
+    };
+  });
+}
+
+/* подбираем ключ: сначала сохранённый пароль, потом спрашиваем, пока не подойдёт */
+async function unlock(metaBuf) {
+  let pw = savedPassword();
+  let wrong = false;
+  for (;;) {
+    if (!pw) pw = await askPassword(wrong);
+    encKey = await deriveKey(pw);
+    try {
+      const meta = await decryptJson(metaBuf);
+      rememberPassword(pw);
+      $(".sticky").hidden = false;
+      return meta;
+    } catch {
+      wrong = true;
+      pw = null;
+      rememberPassword(null);
+    }
+  }
+}
+
 /* ---------- загрузка ---------- */
 async function boot() {
   $("#content").innerHTML = '<div class="loading">Загружаю расписание…</div>';
+  if (!window.crypto || !crypto.subtle || typeof DecompressionStream === "undefined") {
+    $("#content").innerHTML = '<div class="load-error">Этот браузер слишком старый для расшифровки расписания 😕<br>Обнови браузер или открой сайт в другом.</div>';
+    return;
+  }
   try {
-    const meta = await (await fetch("data/meta.json", { cache: "no-cache" })).json();
+    const meta = await unlock(await fetchEnc("meta.json"));
+    $("#content").innerHTML = '<div class="loading">Загружаю расписание…</div>';
     const [groups, teachers, cabinets, ...weeks] = await Promise.all([
-      fetch("data/groups.json").then((r) => r.json()),
-      fetch("data/teachers.json").then((r) => r.json()),
-      fetch("data/cabinets.json").then((r) => r.json()),
-      ...meta.weeks.map((w) => fetch("data/" + w.file, { cache: "no-cache" }).then((r) => r.json())),
+      loadJson("groups.json"),
+      loadJson("teachers.json"),
+      loadJson("cabinets.json"),
+      ...meta.weeks.map((w) => loadJson(w.file)),
     ]);
     data.meta = meta;
     data.groups = groups.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
@@ -670,5 +762,6 @@ document.querySelectorAll("#viewToggle button").forEach((b) => {
   b.onclick = () => { state.view = b.dataset.view; renderAll(); };
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+$("#lockLink").onclick = (e) => { e.preventDefault(); rememberPassword(null); location.reload(); };
 
 boot();

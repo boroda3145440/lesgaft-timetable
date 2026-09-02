@@ -1,16 +1,25 @@
-"""Выгрузка расписания из публикации mstimetables в статические JSON-файлы.
+"""Выгрузка расписания из публикации mstimetables в зашифрованные файлы data/*.json.enc.
 
-Запуск:  uv run python fetch_data.py [--limit N] [--weeks K]
-  --limit N  взять только первые N групп (для быстрой проверки)
-  --weeks K  сколько недель качать, начиная с текущей (по умолчанию 2)
+Запуск:  python fetch_data.py [--limit N] [--weeks K] [--password P] [--encrypt-only] [--plain]
+  --limit N       взять только первые N групп (для быстрой проверки)
+  --weeks K       сколько недель качать, начиная с текущей (по умолчанию 4)
+  --password P    пароль сайта; иначе берётся из переменной TIMETABLE_PASSWORD
+                  или из файла .password рядом со скриптом
+  --encrypt-only  ничего не качать, зашифровать уже лежащие в data/ открытые *.json
+  --plain         писать открытые *.json (только для отладки, в репо они не попадают)
 
-Результат кладётся в папку data/ рядом со скриптом:
-  meta.json, groups.json, teachers.json, cabinets.json, week-ГГГГ-ММ-ДД.json
+Шифрование: gzip -> AES-256-GCM, ключ из пароля через PBKDF2-SHA256 (соль и число
+итераций те же, что в app.js). IV выводится из ключа и содержимого, поэтому при
+неизменных данных файл побайтно тот же - робот не делает пустых коммитов.
+Нужна библиотека cryptography:  pip install cryptography
 """
 
 import argparse
 import datetime as dt
+import gzip
+import hashlib
 import json
+import os
 import pathlib
 import sys
 import time
@@ -21,6 +30,13 @@ PUBLICATION_ID = "daaaf5b9-665d-44a1-b349-0ebc10ca5441"
 OUT_DIR = pathlib.Path(__file__).resolve().parent / "data"
 DELAY_SEC = 0.08  # пауза между запросами, чтобы не долбить чужой сервер
 MSK = dt.timezone(dt.timedelta(hours=3))
+
+# параметры вывода ключа из пароля - должны совпадать с app.js
+KDF_SALT = bytes.fromhex("6c6573676166742d74696d657461626c652d3230323600")
+KDF_ITER = 200_000
+ENC_SUFFIX = ".enc"
+PLAIN = False       # --plain: писать открытые json
+ENC_KEY = None      # 32-байтный ключ AES
 
 HEADERS = {
     "Content-Type": "application/json",
@@ -77,18 +93,74 @@ def clean_lesson(raw):
     }
 
 
+def read_password(cli_value):
+    if cli_value:
+        return cli_value
+    env = os.environ.get("TIMETABLE_PASSWORD")
+    if env:
+        return env
+    pw_file = pathlib.Path(__file__).resolve().parent / ".password"
+    if pw_file.exists():
+        return pw_file.read_text(encoding="utf-8").strip()
+    return None
+
+
+def derive_key(password):
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), KDF_SALT, KDF_ITER, dklen=32)
+
+
+def encrypt_bytes(plain):
+    """gzip + AES-GCM. IV детерминированный (sha256 от ключа и сжатых данных):
+    одинаковые данные -> одинаковый файл, разные данные -> разный IV."""
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM  # noqa: PLC0415
+    gz = gzip.compress(plain, mtime=0)
+    iv = hashlib.sha256(ENC_KEY + gz).digest()[:12]
+    return iv + AESGCM(ENC_KEY).encrypt(iv, gz, None)
+
+
 def save_json(name, payload):
     OUT_DIR.mkdir(exist_ok=True)
-    path = OUT_DIR / name
-    path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print(f"  {name}: {path.stat().st_size / 1024:.0f} КБ")
+    raw = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    if PLAIN:
+        path = OUT_DIR / name
+        path.write_bytes(raw)
+    else:
+        path = OUT_DIR / (name + ENC_SUFFIX)
+        path.write_bytes(encrypt_bytes(raw))
+    print(f"  {path.name}: {path.stat().st_size / 1024:.0f} КБ")
+
+
+def encrypt_existing():
+    """Зашифровать открытые data/*.json, которые уже лежат на диске (без выгрузки)."""
+    files = sorted(OUT_DIR.glob("*.json"))
+    if not files:
+        sys.exit("В data/ нет открытых *.json - нечего шифровать.")
+    for f in files:
+        save_json(f.name, json.loads(f.read_text(encoding="utf-8")))
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=0)
     parser.add_argument("--weeks", type=int, default=4)
+    parser.add_argument("--password", default=None)
+    parser.add_argument("--encrypt-only", action="store_true")
+    parser.add_argument("--plain", action="store_true")
     args = parser.parse_args()
+
+    global PLAIN, ENC_KEY  # noqa: PLW0603
+    PLAIN = args.plain
+    if not PLAIN:
+        password = read_password(args.password)
+        if not password:
+            sys.exit("Нет пароля: укажи --password, переменную TIMETABLE_PASSWORD или файл .password "
+                     "(либо --plain для открытых файлов).")
+        ENC_KEY = derive_key(password)
+    if args.encrypt_only:
+        print("Шифрую существующие файлы...")
+        encrypt_existing()
+        print("Готово.")
+        return
 
     print("Качаю справочники...")
     bootstrap = http_get("bootstrap")
