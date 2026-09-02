@@ -239,6 +239,7 @@ let pinKeyHandler = null;
 
 function askPassword(wrong) {
   $(".sticky").hidden = true;
+  $("#lockRow").hidden = true;
   if (pinKeyHandler) { document.removeEventListener("keydown", pinKeyHandler); pinKeyHandler = null; }
   return lockDigits > 0 ? askPin(wrong) : askPasswordText(wrong);
 }
@@ -276,7 +277,6 @@ function askPin(wrong) {
   const dotsHtml = '<span class="pin-dot"></span>'.repeat(lockDigits);
   content.innerHTML = `<div class="pin" id="pin">
       <div class="pin-title">${wrong ? "Код не подошёл" : "Введите код-пароль"}</div>
-      <div class="pin-sub">${wrong ? "Попробуй ещё раз" : "Один раз, дальше запомнится"}</div>
       <div class="pin-dots${wrong ? " shake" : ""}" id="pinDots">${dotsHtml}</div>
       <div class="pin-keys">
         ${keys}
@@ -325,6 +325,7 @@ async function unlock(metaBuf) {
       rememberPassword(pw);
       if (pinKeyHandler) { document.removeEventListener("keydown", pinKeyHandler); pinKeyHandler = null; }
       $(".sticky").hidden = false;
+      $("#lockRow").hidden = false;
       return meta;
     } catch {
       wrong = true;

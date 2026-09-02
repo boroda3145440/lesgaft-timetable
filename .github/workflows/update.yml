@@ -37,5 +37,9 @@ jobs:
           git config user.name "schedule-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data
-          git diff --cached --quiet || git commit -m "авто: обновление данных расписания"
+          git diff --cached --quiet && exit 0
+          git commit -m "авто: обновление данных расписания"
+          # пока шла выгрузка, в main могли запушить код - подтягиваем и кладём
+          # свой коммит сверху; при конфликте в data побеждает свежая выгрузка
+          git pull --rebase -X theirs origin main
           git push
