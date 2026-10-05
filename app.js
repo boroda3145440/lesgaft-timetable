@@ -50,6 +50,20 @@ function cabinetBase(title) {
   return title.replace(/\s*\(\d+\)\s*$/, "");
 }
 
+/* справочник аудиторий у вуза бывает пустым (их API отдаёт []).
+   Тогда собираем список аудиторий из самих занятий — в каждой паре есть
+   cabinet {id, name}. Делаем всегда: даже при живом справочнике добираем
+   из пар то, чего в нём не оказалось. */
+function collectCabinetsFromLessons() {
+  const byId = new Map();
+  data.cabinets.forEach((c) => { if (c && c.id != null) byId.set(c.id, c); });
+  data.weeks.forEach((w) => w.lessons.forEach((l) => {
+    const c = l.cabinet;
+    if (c && c.id != null && !byId.has(c.id)) byId.set(c.id, { id: c.id, name: c.name });
+  }));
+  data.cabinets = [...byId.values()];
+}
+
 /* объединяем одноимённые аудитории: id -> {title, ids[]} */
 function buildCabinetGroups() {
   const byBase = new Map();
@@ -361,6 +375,7 @@ async function boot() {
     data.teachers = teachers.sort((a, b) => a.fio.localeCompare(b.fio, "ru"));
     data.cabinets = cabinets;
     data.weeks = weeks;
+    collectCabinetsFromLessons();
     buildCabinetGroups();
 
     if (meta.siteName) $("#siteName").textContent = meta.siteName;
